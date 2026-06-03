@@ -283,7 +283,16 @@ with gr.Blocks(title="Cosmos3-Nano UI", theme=gr.themes.Soft()) as demo:
                     video_endpoint = gr.Textbox(label="Video endpoint", value=DEFAULT_VIDEO_ENDPOINT)
                     size = gr.Dropdown(
                         label="Size",
-                        choices=["1280x720", "720x1280", "960x544", "544x960", "704x704"],
+                        choices=[
+                            "1280x720",
+                            "720x1280",
+                            "640x480",
+                            "480x640",
+                            "480x480",
+                            "960x544",
+                            "544x960",
+                            "704x704",
+                        ],
                         value="1280x720",
                         allow_custom_value=True,
                     )
