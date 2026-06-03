@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments and local package installs
+.venv/
+.venv-*/
+venv/
+env/
+
+# Generated outputs
+outputs/
+*.mp4
+*.mov
+*.webm
+*.mkv
+*.avi
+*.png
+*.jpg
+*.jpeg
+*.webp
+
+# Model weights and local model stores
+models/
+weights/
+checkpoints/
+*.safetensors
+*.ckpt
+*.pt
+*.pth
+*.bin
+*.gguf
+*.onnx
+
+# Hugging Face and auth material
+.cache/
+.huggingface/
+token
+*.token
+*.secret
+.env
+.env.*
+!.env.example
+
+# Logs and runtime state
+logs/
+*.log
+*.pid
+
+# OS/editor noise
+.DS_Store
+.idea/
+.vscode/
