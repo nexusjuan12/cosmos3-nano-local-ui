@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import mimetypes
 import os
+import random
 import time
 from pathlib import Path
 from typing import Any
@@ -101,6 +102,7 @@ def generate_video(
     flow_shift: float,
     max_sequence_length: int,
     seed: int,
+    random_seed: bool,
     generate_sound: bool,
     sound_duration: float,
     guardrails: bool,
@@ -112,6 +114,7 @@ def generate_video(
     if not endpoint:
         raise gr.Error("Video endpoint URL is required.")
     endpoint = _async_video_endpoint(endpoint)
+    effective_seed = random.randint(0, 2**32 - 1) if random_seed else int(seed)
 
     data = {
         "prompt": _coerce_prompt(prompt),
@@ -124,7 +127,7 @@ def generate_video(
         "max_sequence_length": str(max_sequence_length),
         "flow_shift": str(flow_shift),
         "extra_params": _extra_params(guardrails, use_resolution_template, use_duration_template),
-        "seed": str(seed),
+        "seed": str(effective_seed),
     }
 
     if generate_sound:
@@ -197,6 +200,8 @@ def generate_video(
         "response_content_type": response.headers.get("content-type"),
         "elapsed_seconds": round(time.time() - started, 2),
         "endpoint": endpoint,
+        "seed": effective_seed,
+        "random_seed": random_seed,
         "job": last_job,
         "request": data,
         "used_input_reference": bool(input_reference),
@@ -302,6 +307,7 @@ with gr.Blocks(title="Cosmos3-Nano UI", theme=gr.themes.Soft()) as demo:
                     with gr.Row():
                         steps = gr.Number(label="Steps", value=35, precision=0)
                         seed = gr.Number(label="Seed", value=123, precision=0)
+                    random_seed = gr.Checkbox(label="Random seed", value=False)
                     guidance = gr.Slider(label="Guidance scale", minimum=0, maximum=20, value=6.0, step=0.1)
                     flow_shift = gr.Slider(label="Flow shift", minimum=0, maximum=20, value=10.0, step=0.1)
                     max_sequence = gr.Number(label="Max sequence length", value=4096, precision=0)
@@ -335,6 +341,7 @@ with gr.Blocks(title="Cosmos3-Nano UI", theme=gr.themes.Soft()) as demo:
                     flow_shift,
                     max_sequence,
                     seed,
+                    random_seed,
                     sound,
                     sound_duration,
                     guardrails,
