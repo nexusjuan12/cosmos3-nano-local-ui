@@ -11,7 +11,7 @@ import gradio as gr
 import requests
 
 
-DEFAULT_VIDEO_ENDPOINT = os.getenv("COSMOS3_VIDEO_ENDPOINT", "http://127.0.0.1:8000/v1/videos/sync")
+DEFAULT_VIDEO_ENDPOINT = os.getenv("COSMOS3_VIDEO_ENDPOINT", "http://127.0.0.1:8000/v1/videos")
 DEFAULT_CHAT_ENDPOINT = os.getenv("COSMOS3_CHAT_ENDPOINT", "http://127.0.0.1:8000/v1/chat/completions")
 DEFAULT_MODEL = os.getenv("COSMOS3_MODEL", "nvidia/Cosmos3-Nano")
 DEFAULT_OUTPUT_DIR = Path(__file__).resolve().parent / "outputs"
@@ -74,6 +74,20 @@ def check_endpoint(base_url: str) -> str:
         return response.text
 
 
+def _raise_response_error(prefix: str, response: requests.Response) -> None:
+    detail = response.text.strip()
+    if len(detail) > 1200:
+        detail = detail[:1200] + "..."
+    raise gr.Error(f"{prefix}: HTTP {response.status_code} {response.reason}. {detail}")
+
+
+def _async_video_endpoint(endpoint: str) -> str:
+    endpoint = endpoint.rstrip("/")
+    if endpoint.endswith("/sync"):
+        return endpoint[: -len("/sync")]
+    return endpoint
+
+
 def generate_video(
     prompt: str,
     negative_prompt: str,
@@ -97,6 +111,7 @@ def generate_video(
     endpoint = (endpoint_url or "").strip()
     if not endpoint:
         raise gr.Error("Video endpoint URL is required.")
+    endpoint = _async_video_endpoint(endpoint)
 
     data = {
         "prompt": _coerce_prompt(prompt),
@@ -128,16 +143,47 @@ def generate_video(
             }
 
         started = time.time()
-        response = requests.post(
+        create_response = requests.post(
             endpoint,
             data=data,
             files=files,
-            headers={"Accept": "video/mp4"},
             timeout=timeout_seconds,
         )
-        response.raise_for_status()
+        if not create_response.ok:
+            _raise_response_error("Video job creation failed", create_response)
+        job = create_response.json()
+        video_id = job.get("id")
+        if not video_id:
+            raise gr.Error(f"Video job creation did not return an id: {json.dumps(job, indent=2)}")
+
+        status_url = f"{endpoint}/{video_id}"
+        content_url = f"{status_url}/content"
+        deadline = started + timeout_seconds
+        poll_interval = 5.0
+        last_job = job
+
+        while time.time() < deadline:
+            status_response = requests.get(status_url, timeout=30)
+            if not status_response.ok:
+                _raise_response_error("Video job status request failed", status_response)
+
+            last_job = status_response.json()
+            status = str(last_job.get("status", "")).lower()
+            if status == "completed":
+                break
+            if status == "failed":
+                raise gr.Error(f"Video generation failed: {json.dumps(last_job, indent=2)}")
+            time.sleep(poll_interval)
+        else:
+            raise gr.Error(f"Timed out waiting for video job {video_id}. Last status: {json.dumps(last_job, indent=2)}")
+
+        response = requests.get(content_url, headers={"Accept": "video/mp4"}, timeout=timeout_seconds)
+        if not response.ok:
+            _raise_response_error("Video download failed", response)
     except requests.RequestException as exc:
         raise gr.Error(f"Video request failed: {exc}") from exc
+    except ValueError as exc:
+        raise gr.Error(f"Video endpoint returned invalid JSON: {exc}") from exc
     finally:
         if file_handle:
             file_handle.close()
@@ -151,6 +197,7 @@ def generate_video(
         "response_content_type": response.headers.get("content-type"),
         "elapsed_seconds": round(time.time() - started, 2),
         "endpoint": endpoint,
+        "job": last_job,
         "request": data,
         "used_input_reference": bool(input_reference),
     }

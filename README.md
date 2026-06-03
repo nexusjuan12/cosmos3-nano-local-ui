@@ -4,7 +4,7 @@ A small Gradio control panel for local NVIDIA Cosmos3-Nano generation.
 
 It supports the local endpoints documented on the `nvidia/Cosmos3-Nano` model card:
 
-- video generation with vLLM-Omni: `POST /v1/videos/sync`
+- video generation with vLLM-Omni: `POST /v1/videos`, then polling and download through `/v1/videos/{id}/content`
 - reasoner chat with vLLM: `POST /v1/chat/completions`
 
 The model is served locally on `localhost:8000`; the UI runs locally on `localhost:7860`.
@@ -73,7 +73,7 @@ For video generation, run this in one terminal:
 ./serve_generator.sh
 ```
 
-This starts a local server at `http://127.0.0.1:8000` with `POST /v1/videos/sync`.
+This starts a local server at `http://127.0.0.1:8000` with `POST /v1/videos`.
 
 For reasoner chat, stop the generator server and run:
 
@@ -99,7 +99,7 @@ http://127.0.0.1:7860
 
 ## Runtime Settings
 
-- `COSMOS3_VIDEO_ENDPOINT`, default `http://127.0.0.1:8000/v1/videos/sync`
+- `COSMOS3_VIDEO_ENDPOINT`, default `http://127.0.0.1:8000/v1/videos`
 - `COSMOS3_CHAT_ENDPOINT`, default `http://127.0.0.1:8000/v1/chat/completions`
 - `COSMOS3_MODEL`, default `nvidia/Cosmos3-Nano`
 - `COSMOS3_OUTPUT_DIR`, default `outputs/` inside the repo
